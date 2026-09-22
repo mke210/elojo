@@ -6,8 +6,10 @@
   <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="description" content="Dragon Eye Video Player">
   <title>Dragon Eye</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>️</text></svg>">
   <link rel="apple-touch-icon" href="icon-192.png">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -20,58 +22,181 @@
       -webkit-user-select: none;
       user-select: none;
     }
-    video {
+    #container {
       position: fixed;
       top: 0; left: 0;
       width: 100vw;
       height: 100vh;
-      object-fit: cover;
       background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    /* Ocultar cualquier UI nativa */
-    video::-webkit-media-controls { display: none !important; }
-    video::-webkit-media-controls-enclosure { display: none !important; }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    #startScreen {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      cursor: pointer;
+    }
+    #startScreen h1 {
+      color: #ff4500;
+      font-family: Arial, sans-serif;
+      font-size: 24px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    #startScreen p {
+      color: #888;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      margin-bottom: 30px;
+    }
+    #startBtn {
+      background: linear-gradient(135deg, #ff4500, #ff6a00);
+      color: white;
+      border: none;
+      padding: 20px 40px;
+      font-size: 18px;
+      border-radius: 50px;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: 0 4px 15px rgba(255, 69, 0, 0.4);
+      transition: transform 0.2s;
+    }
+    #startBtn:active {
+      transform: scale(0.95);
+    }
+    .hidden {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
-  <video id="vid" playsinline autoplay muted loop>
-    <source src="video.mp4" type="video/mp4">
-  </video>
+  <div id="startScreen">
+    <h1>👁️ Dragon Eye</h1>
+    <p>Toca para comenzar</p>
+    <button id="startBtn">INICIAR</button>
+  </div>
+
+  <div id="container">
+    <video id="vid" playsinline loop muted>
+      <source src="video.mp4" type="video/mp4">
+    </video>
+  </div>
 
   <script>
-    const v = document.getElementById('vid');
+    const video = document.getElementById('vid');
+    const startScreen = document.getElementById('startScreen');
+    const startBtn = document.getElementById('startBtn');
+    let isPlaying = false;
 
-    // Forzar reproducción (algunos móviles bloquean autoplay)
-    v.muted = true;
-    v.loop = true;
-    v.playsInline = true;
-    v.setAttribute('playsinline', '');
-    v.setAttribute('webkit-playsinline', '');
-
-    const play = () => v.play().catch(() => {});
-    v.addEventListener('ended', play);
-    v.addEventListener('pause', play);
-    document.addEventListener('click', play, { once: true });
-    document.addEventListener('touchstart', play, { once: true });
-
-    // Pantalla completa al cargar
-    const goFS = () => {
-      const el = document.documentElement;
-      if (el.requestFullscreen) el.requestFullscreen();
-      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-      else if (el.msRequestFullscreen) el.msRequestFullscreen();
-    };
-    setTimeout(goFS, 300);
-
-    // Bloquear orientación horizontal
-    if (screen.orientation && screen.orientation.lock) {
-      screen.orientation.lock('portrait').catch(() => {});
+    // Función para reproducir el video
+    async function playVideo() {
+      try {
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
+        
+        await video.play();
+        isPlaying = true;
+        console.log('✅ Video reproduciéndose');
+      } catch (err) {
+        console.error('❌ Error al reproducir:', err);
+      }
     }
+
+    // Función para fullscreen (solo con interacción del usuario)
+    async function goFullscreen() {
+      try {
+        const elem = document.documentElement;
+        if (elem.requestFullscreen) {
+          await elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) {
+          await elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) {
+          await elem.msRequestFullscreen();
+        }
+        console.log('✅ Fullscreen activado');
+      } catch (err) {
+        console.warn('⚠️ Fullscreen no disponible:', err.message);
+      }
+    }
+
+    // Bloquear orientación
+    function lockOrientation() {
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('portrait').catch(() => {
+          console.log('Orientación no bloqueada');
+        });
+      }
+    }
+
+    // Evento principal - cuando el usuario toca/clickea
+    async function handleUserInteraction() {
+      console.log('👆 Interacción del usuario detectada');
+      
+      // Ocultar pantalla de inicio
+      startScreen.classList.add('hidden');
+      
+      // Reproducir video
+      await playVideo();
+      
+      // Activar fullscreen
+      await goFullscreen();
+      
+      // Bloquear orientación
+      lockOrientation();
+      
+      // Mantener pantalla encendida
+      if ('wakeLock' in navigator) {
+        navigator.wakeLock.request('screen').catch(() => {});
+      }
+    }
+
+    // Event listeners
+    startBtn.addEventListener('click', handleUserInteraction);
+    startScreen.addEventListener('touchstart', handleUserInteraction, { once: true });
+    startScreen.addEventListener('click', handleUserInteraction, { once: true });
+
+    // Loop infinito
+    video.addEventListener('ended', () => {
+      console.log('🔄 Reiniciando video...');
+      video.currentTime = 0;
+      video.play();
+    });
+
+    // Si el video se pausa, intentar reproducir de nuevo
+    video.addEventListener('pause', () => {
+      if (!video.ended && isPlaying) {
+        video.play();
+      }
+    });
 
     // Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js');
+      navigator.serviceWorker.register('sw.js')
+        .then(() => console.log('✅ Service Worker registrado'))
+        .catch(err => console.error('❌ SW error:', err));
     }
+
+    // Prevenir zoom y gestos no deseados
+    document.addEventListener('gesturestart', e => e.preventDefault());
+    document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+    document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
   </script>
 </body>
 </html>
