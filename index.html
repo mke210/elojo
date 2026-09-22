@@ -32,13 +32,16 @@
     }
     
     video {
-      width: 50vw;
-      height: 50vw;
-      max-width: 50vw;
-      max-height: 50vw;
+      /* Tamaño aumentado un 10% (de 50 a 55) */
+      width: 55vw;
+      height: auto;
+      max-width: 55vw;
+      max-height: 80vh;
       object-fit: contain;
       display: block;
-      border-radius: 50%;
+      
+      /* Sube el video aprox. 5cm (15% del alto de la pantalla) */
+      transform: translateY(-15vh); 
     }
     
     #startScreen {
