@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Dragon Eye</title>
   <link rel="manifest" href="manifest.json">
   <style>
@@ -14,6 +16,7 @@
       background: #000;
       overflow: hidden;
       touch-action: none;
+      position: fixed;
     }
     #container {
       position: fixed;
@@ -21,9 +24,6 @@
       width: 100vw;
       height: 100vh;
       background: #000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
     video {
       width: 100%;
@@ -34,38 +34,53 @@
     #startScreen {
       position: fixed;
       top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      background: #000;
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(180deg, #000 0%, #1a0000 100%);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 9999;
+      padding: 20px;
     }
     #startScreen h1 {
       color: #ff4500;
-      font-family: Arial, sans-serif;
-      font-size: 28px;
+      font-family: 'Arial Black', sans-serif;
+      font-size: 36px;
       margin-bottom: 10px;
+      text-shadow: 0 0 20px #ff4500;
       text-align: center;
     }
+    #startScreen .eye-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.8; }
+    }
     #startScreen p {
-      color: #666;
+      color: #888;
       font-family: Arial, sans-serif;
-      font-size: 14px;
-      margin-bottom: 30px;
+      font-size: 16px;
+      margin-bottom: 40px;
     }
     #startBtn {
       background: linear-gradient(135deg, #ff4500, #ff6a00);
       color: white;
       border: none;
-      padding: 20px 40px;
-      font-size: 18px;
+      padding: 25px 60px;
+      font-size: 22px;
       border-radius: 50px;
       cursor: pointer;
       font-weight: bold;
-      box-shadow: 0 4px 15px rgba(255, 69, 0, 0.4);
+      box-shadow: 0 6px 20px rgba(255, 69, 0, 0.5);
+      margin-bottom: 20px;
+    }
+    #startBtn:active {
+      transform: scale(0.95);
     }
     #loadingMsg {
       color: #ff4500;
@@ -75,35 +90,40 @@
       display: none;
     }
     #errorMsg {
-      color: #ff0000;
+      color: #ff6666;
       font-family: Arial, sans-serif;
       font-size: 14px;
       margin-top: 20px;
       padding: 15px;
-      background: #220000;
+      background: rgba(255, 0, 0, 0.1);
+      border: 1px solid #ff0000;
       border-radius: 10px;
-      max-width: 80%;
+      max-width: 90%;
       text-align: center;
       display: none;
     }
-    #debugInfo {
+    #fileStatus {
       color: #444;
       font-family: monospace;
-      font-size: 11px;
+      font-size: 12px;
       margin-top: 30px;
       text-align: center;
+      padding: 10px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 5px;
     }
     .hidden { display: none !important; }
   </style>
 </head>
 <body>
   <div id="startScreen">
-    <h1>👁️ Dragon Eye</h1>
-    <p>Toca para comenzar</p>
+    <div class="eye-icon">👁️</div>
+    <h1>DRAGON EYE</h1>
+    <p>Toca el botón para iniciar</p>
     <button id="startBtn">INICIAR</button>
-    <div id="loadingMsg">⏳ Cargando video...</div>
+    <div id="loadingMsg"> Cargando video...</div>
     <div id="errorMsg"></div>
-    <div id="debugInfo">video.mp4</div>
+    <div id="fileStatus">Verificando video.mp4...</div>
   </div>
 
   <div id="container">
@@ -118,35 +138,43 @@
     const startBtn = document.getElementById('startBtn');
     const loadingMsg = document.getElementById('loadingMsg');
     const errorMsg = document.getElementById('errorMsg');
-    const debugInfo = document.getElementById('debugInfo');
+    const fileStatus = document.getElementById('fileStatus');
 
-    // Verificar si el video existe
-    async function checkVideoExists() {
+    // Verificar video
+    async function verifyVideo() {
       try {
-        const response = await fetch('video.mp4', { method: 'HEAD' });
+        const response = await fetch('video.mp4', { 
+          method: 'HEAD',
+          cache: 'no-cache'
+        });
+        
         if (!response.ok) {
-          throw new Error('Video no encontrado (404)');
+          throw new Error(`HTTP ${response.status}`);
         }
+        
         const size = response.headers.get('content-length');
-        debugInfo.textContent = `✓ video.mp4 (${(size/1024/1024).toFixed(2)} MB)`;
+        const sizeMB = size ? (size / 1024 / 1024).toFixed(2) : '?';
+        fileStatus.innerHTML = `✅ video.mp4 listo (${sizeMB} MB)`;
+        fileStatus.style.color = '#00ff00';
         return true;
       } catch (err) {
-        debugInfo.textContent = `✗ Error: ${err.message}`;
+        fileStatus.innerHTML = `❌ Error: ${err.message}<br><br>Sube video.mp4 a GitHub`;
+        fileStatus.style.color = '#ff4444';
+        
+        errorMsg.innerHTML = `
+          <strong>VIDEO NO ENCONTRADO</strong><br><br>
+          1. Ve a GitHub.com<br>
+          2. Sube tu archivo video.mp4<br>
+          3. Espera 2 minutos<br>
+          4. Recarga esta página
+        `;
+        errorMsg.style.display = 'block';
         return false;
       }
     }
 
-    // Verificar al cargar
-    window.addEventListener('load', () => {
-      checkVideoExists();
-      
-      // Precargar video
-      video.load();
-      debugInfo.textContent += ' | Preparando...';
-    });
-
-    async function handleUserInteraction() {
-      console.log('👆 Iniciando...');
+    // Iniciar
+    async function startApp() {
       loadingMsg.style.display = 'block';
       startBtn.disabled = true;
 
@@ -156,12 +184,10 @@
         video.playsInline = true;
         video.setAttribute('playsinline', '');
         
-        // Intentar reproducir
-        console.log(' Intentando reproducir...');
+        // Reproducir
         await video.play();
-        console.log('✅ Video reproduciéndose');
         
-        // Ocultar pantalla de inicio
+        // Ocultar inicio
         startScreen.classList.add('hidden');
         
         // Fullscreen
@@ -169,9 +195,7 @@
           if (document.documentElement.requestFullscreen) {
             await document.documentElement.requestFullscreen();
           }
-        } catch (e) {
-          console.log('Fullscreen omitido:', e.message);
-        }
+        } catch (e) {}
         
         // Wake lock
         if ('wakeLock' in navigator) {
@@ -181,37 +205,32 @@
         }
         
       } catch (err) {
-        console.error('❌ Error:', err);
         loadingMsg.style.display = 'none';
         startBtn.disabled = false;
         
-        let msg = 'Error desconocido';
-        if (err.name === 'NotAllowedError') {
-          msg = 'Autoplay bloqueado. Toca la pantalla.';
-        } else if (err.message.includes('404')) {
-          msg = ' video.mp4 no encontrado en GitHub';
-        } else if (err.name === 'NotSupportedError') {
-          msg = 'Formato de video no compatible';
-        }
-        
-        errorMsg.textContent = msg;
+        errorMsg.innerHTML = `<strong>Error:</strong> ${err.message}`;
         errorMsg.style.display = 'block';
       }
     }
 
-    // Eventos del video
+    // Eventos
+    window.addEventListener('load', () => {
+      verifyVideo();
+      video.load();
+    });
+
+    startBtn.addEventListener('click', startApp);
+
     video.addEventListener('loadeddata', () => {
-      console.log('✅ Video cargado:', video.duration, 'segundos');
+      console.log('✅ Video cargado');
     });
 
     video.addEventListener('error', (e) => {
-      console.error('❌ Error de video:', video.error);
-      let msg = 'Error al cargar video';
-      if (video.error.code === 4) msg = 'Formato no soportado';
-      if (video.error.code === 1) msg = 'Video cancelado';
-      errorMsg.textContent = msg;
+      console.error('❌ Error video:', video.error);
+      errorMsg.innerHTML = '<strong>Error al cargar video</strong><br>Verifica que video.mp4 esté en GitHub';
       errorMsg.style.display = 'block';
       loadingMsg.style.display = 'none';
+      startBtn.disabled = false;
     });
 
     video.addEventListener('ended', () => {
@@ -219,13 +238,14 @@
       video.play();
     });
 
-    // Event listeners
-    startBtn.addEventListener('click', handleUserInteraction);
-
     // Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js');
     }
+
+    // Prevenir gestos
+    document.addEventListener('gesturestart', e => e.preventDefault());
+    document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
   </script>
 </body>
 </html>
