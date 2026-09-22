@@ -32,12 +32,13 @@
     }
     
     video {
-      max-width: 100%;
-      max-height: 100%;
-      width: auto;
-      height: auto;
+      width: 50vw;
+      height: 50vw;
+      max-width: 50vw;
+      max-height: 50vw;
       object-fit: contain;
       display: block;
+      border-radius: 50%;
     }
     
     #startScreen {
@@ -130,7 +131,7 @@
     <h1>DRAGON EYE</h1>
     <p>Toca el botón para iniciar</p>
     <button id="startBtn">INICIAR</button>
-    <div id="loadingMsg"> Cargando video...</div>
+    <div id="loadingMsg">⏳ Cargando video...</div>
     <div id="errorMsg"></div>
   </div>
 
@@ -159,12 +160,10 @@
         await video.play();
         startScreen.classList.add('hidden');
         
-        // Bloquear orientación vertical
         if (screen.orientation && screen.orientation.lock) {
           screen.orientation.lock('portrait').catch(() => {});
         }
         
-        // Wake lock para mantener pantalla encendida
         if ('wakeLock' in navigator) {
           try {
             await navigator.wakeLock.request('screen');
