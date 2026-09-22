@@ -4,13 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="description" content="Dragon Eye Video Player">
   <title>Dragon Eye</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>️</text></svg>">
-  <link rel="apple-touch-icon" href="icon-192.png">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -19,8 +14,6 @@
       background: #000;
       overflow: hidden;
       touch-action: none;
-      -webkit-user-select: none;
-      user-select: none;
     }
     #container {
       position: fixed;
@@ -49,17 +42,16 @@
       align-items: center;
       justify-content: center;
       z-index: 9999;
-      cursor: pointer;
     }
     #startScreen h1 {
       color: #ff4500;
       font-family: Arial, sans-serif;
-      font-size: 24px;
-      margin-bottom: 20px;
+      font-size: 28px;
+      margin-bottom: 10px;
       text-align: center;
     }
     #startScreen p {
-      color: #888;
+      color: #666;
       font-family: Arial, sans-serif;
       font-size: 14px;
       margin-bottom: 30px;
@@ -74,14 +66,34 @@
       cursor: pointer;
       font-weight: bold;
       box-shadow: 0 4px 15px rgba(255, 69, 0, 0.4);
-      transition: transform 0.2s;
     }
-    #startBtn:active {
-      transform: scale(0.95);
+    #loadingMsg {
+      color: #ff4500;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      margin-top: 20px;
+      display: none;
     }
-    .hidden {
-      display: none !important;
+    #errorMsg {
+      color: #ff0000;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      margin-top: 20px;
+      padding: 15px;
+      background: #220000;
+      border-radius: 10px;
+      max-width: 80%;
+      text-align: center;
+      display: none;
     }
+    #debugInfo {
+      color: #444;
+      font-family: monospace;
+      font-size: 11px;
+      margin-top: 30px;
+      text-align: center;
+    }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
@@ -89,10 +101,13 @@
     <h1>👁️ Dragon Eye</h1>
     <p>Toca para comenzar</p>
     <button id="startBtn">INICIAR</button>
+    <div id="loadingMsg">⏳ Cargando video...</div>
+    <div id="errorMsg"></div>
+    <div id="debugInfo">video.mp4</div>
   </div>
 
   <div id="container">
-    <video id="vid" playsinline loop muted>
+    <video id="vid" playsinline loop muted preload="auto">
       <source src="video.mp4" type="video/mp4">
     </video>
   </div>
@@ -101,102 +116,116 @@
     const video = document.getElementById('vid');
     const startScreen = document.getElementById('startScreen');
     const startBtn = document.getElementById('startBtn');
-    let isPlaying = false;
+    const loadingMsg = document.getElementById('loadingMsg');
+    const errorMsg = document.getElementById('errorMsg');
+    const debugInfo = document.getElementById('debugInfo');
 
-    // Función para reproducir el video
-    async function playVideo() {
+    // Verificar si el video existe
+    async function checkVideoExists() {
       try {
+        const response = await fetch('video.mp4', { method: 'HEAD' });
+        if (!response.ok) {
+          throw new Error('Video no encontrado (404)');
+        }
+        const size = response.headers.get('content-length');
+        debugInfo.textContent = `✓ video.mp4 (${(size/1024/1024).toFixed(2)} MB)`;
+        return true;
+      } catch (err) {
+        debugInfo.textContent = `✗ Error: ${err.message}`;
+        return false;
+      }
+    }
+
+    // Verificar al cargar
+    window.addEventListener('load', () => {
+      checkVideoExists();
+      
+      // Precargar video
+      video.load();
+      debugInfo.textContent += ' | Preparando...';
+    });
+
+    async function handleUserInteraction() {
+      console.log('👆 Iniciando...');
+      loadingMsg.style.display = 'block';
+      startBtn.disabled = true;
+
+      try {
+        // Configurar video
         video.muted = true;
         video.playsInline = true;
         video.setAttribute('playsinline', '');
-        video.setAttribute('webkit-playsinline', '');
         
+        // Intentar reproducir
+        console.log(' Intentando reproducir...');
         await video.play();
-        isPlaying = true;
         console.log('✅ Video reproduciéndose');
-      } catch (err) {
-        console.error('❌ Error al reproducir:', err);
-      }
-    }
-
-    // Función para fullscreen (solo con interacción del usuario)
-    async function goFullscreen() {
-      try {
-        const elem = document.documentElement;
-        if (elem.requestFullscreen) {
-          await elem.requestFullscreen();
-        } else if (elem.webkitRequestFullscreen) {
-          await elem.webkitRequestFullscreen();
-        } else if (elem.msRequestFullscreen) {
-          await elem.msRequestFullscreen();
+        
+        // Ocultar pantalla de inicio
+        startScreen.classList.add('hidden');
+        
+        // Fullscreen
+        try {
+          if (document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen();
+          }
+        } catch (e) {
+          console.log('Fullscreen omitido:', e.message);
         }
-        console.log('✅ Fullscreen activado');
+        
+        // Wake lock
+        if ('wakeLock' in navigator) {
+          try {
+            await navigator.wakeLock.request('screen');
+          } catch (e) {}
+        }
+        
       } catch (err) {
-        console.warn('⚠️ Fullscreen no disponible:', err.message);
+        console.error('❌ Error:', err);
+        loadingMsg.style.display = 'none';
+        startBtn.disabled = false;
+        
+        let msg = 'Error desconocido';
+        if (err.name === 'NotAllowedError') {
+          msg = 'Autoplay bloqueado. Toca la pantalla.';
+        } else if (err.message.includes('404')) {
+          msg = ' video.mp4 no encontrado en GitHub';
+        } else if (err.name === 'NotSupportedError') {
+          msg = 'Formato de video no compatible';
+        }
+        
+        errorMsg.textContent = msg;
+        errorMsg.style.display = 'block';
       }
     }
 
-    // Bloquear orientación
-    function lockOrientation() {
-      if (screen.orientation && screen.orientation.lock) {
-        screen.orientation.lock('portrait').catch(() => {
-          console.log('Orientación no bloqueada');
-        });
-      }
-    }
+    // Eventos del video
+    video.addEventListener('loadeddata', () => {
+      console.log('✅ Video cargado:', video.duration, 'segundos');
+    });
 
-    // Evento principal - cuando el usuario toca/clickea
-    async function handleUserInteraction() {
-      console.log('👆 Interacción del usuario detectada');
-      
-      // Ocultar pantalla de inicio
-      startScreen.classList.add('hidden');
-      
-      // Reproducir video
-      await playVideo();
-      
-      // Activar fullscreen
-      await goFullscreen();
-      
-      // Bloquear orientación
-      lockOrientation();
-      
-      // Mantener pantalla encendida
-      if ('wakeLock' in navigator) {
-        navigator.wakeLock.request('screen').catch(() => {});
-      }
-    }
+    video.addEventListener('error', (e) => {
+      console.error('❌ Error de video:', video.error);
+      let msg = 'Error al cargar video';
+      if (video.error.code === 4) msg = 'Formato no soportado';
+      if (video.error.code === 1) msg = 'Video cancelado';
+      errorMsg.textContent = msg;
+      errorMsg.style.display = 'block';
+      loadingMsg.style.display = 'none';
+    });
 
-    // Event listeners
-    startBtn.addEventListener('click', handleUserInteraction);
-    startScreen.addEventListener('touchstart', handleUserInteraction, { once: true });
-    startScreen.addEventListener('click', handleUserInteraction, { once: true });
-
-    // Loop infinito
     video.addEventListener('ended', () => {
-      console.log('🔄 Reiniciando video...');
       video.currentTime = 0;
       video.play();
     });
 
-    // Si el video se pausa, intentar reproducir de nuevo
-    video.addEventListener('pause', () => {
-      if (!video.ended && isPlaying) {
-        video.play();
-      }
-    });
+    // Event listeners
+    startBtn.addEventListener('click', handleUserInteraction);
 
     // Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js')
-        .then(() => console.log('✅ Service Worker registrado'))
-        .catch(err => console.error('❌ SW error:', err));
+      navigator.serviceWorker.register('sw.js');
     }
-
-    // Prevenir zoom y gestos no deseados
-    document.addEventListener('gesturestart', e => e.preventDefault());
-    document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
-    document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
   </script>
 </body>
 </html>
